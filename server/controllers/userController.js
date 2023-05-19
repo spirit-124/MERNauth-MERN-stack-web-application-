@@ -1,13 +1,21 @@
 import asyncHander from "express-async-handler";
 import User from "../models/userModel.js";
+import generateToken from "../utils/generateTokens.js";
 
 // @desc Auth user/set token
 // route POST /api/user/auth
 // @access public
 const authUser = asyncHander(async (req, res) => {
-  res.status(401);
-  throw new Error("something went wrong");
-  res.status(200).json({ message: "Auth User" });
+  const { email, password } = req.body;
+
+  const user = await User.findOne({ email: email });
+  if (user && (await user.matchpassword(password))) {
+    generateToken(res, user._id);
+    res.status(201).json({ _id: user._id, name: user.name, email: user.email });
+  } else {
+    res.status(401);
+    throw new Error("Invalid email or password");
+  }
 });
 
 // @desc Register new user
@@ -29,7 +37,8 @@ const registerUser = asyncHander(async (req, res) => {
   });
 
   if (user) {
-    res.status(200).json({ _id: user._id, name: user.name, email: user.email });
+    generateToken(res, user._id);
+    res.status(201).json({ _id: user._id, name: user.name, email: user.email });
   } else {
     res.status(400);
     throw new Error("Invalid User data");
@@ -40,7 +49,14 @@ const registerUser = asyncHander(async (req, res) => {
 // route POST /api/user/logout
 // @access public
 const logoutUser = asyncHander(async (req, res) => {
-  res.status(200).json({ message: "Logout User" });
+  res.cookie("jwt", "", {
+    httpOnly: true,
+    expires: new Date(0),
+  });
+
+  res.status(200).json({
+    message: "User logged out",
+  });
 });
 
 // @desc get User Profile
